@@ -21,7 +21,7 @@
 # cntk          latest (pip)
 # ==================================================================
 
-FROM ubuntu:18.04
+FROM nvidia/cuda:10.1-cudnn7-devel-ubuntu18.04
 ENV LANG C.UTF-8
 RUN APT_INSTALL="apt-get install -y --no-install-recommends" && \
     PIP_INSTALL="python -m pip --no-cache-dir install --upgrade" && \
@@ -61,8 +61,8 @@ RUN APT_INSTALL="apt-get install -y --no-install-recommends" && \
 
     $GIT_CLONE https://github.com/pjreddie/darknet.git ~/darknet && \
     cd ~/darknet && \
-    sed -i 's/GPU=0/GPU=0/g' ~/darknet/Makefile && \
-    sed -i 's/CUDNN=0/CUDNN=0/g' ~/darknet/Makefile && \
+    sed -i 's/GPU=0/GPU=1/g' ~/darknet/Makefile && \
+    sed -i 's/CUDNN=0/CUDNN=1/g' ~/darknet/Makefile && \
     make -j"$(nproc)" && \
     cp ~/darknet/include/* /usr/local/include && \
     cp ~/darknet/*.a /usr/local/lib && \
@@ -130,6 +130,7 @@ RUN APT_INSTALL="apt-get install -y --no-install-recommends" && \
 # ------------------------------------------------------------------
 
     $PIP_INSTALL \
+        cupy \
         chainer \
         && \
 
@@ -151,7 +152,7 @@ RUN APT_INSTALL="apt-get install -y --no-install-recommends" && \
         && \
 
     $PIP_INSTALL \
-        mxnet \
+        mxnet-cu101 \
         graphviz \
         && \
 
@@ -177,7 +178,7 @@ RUN APT_INSTALL="apt-get install -y --no-install-recommends" && \
 # ------------------------------------------------------------------
 
     $PIP_INSTALL \
-        paddlepaddle \
+        paddlepaddle-gpu \
         && \
 
 # ==================================================================
@@ -194,7 +195,7 @@ RUN APT_INSTALL="apt-get install -y --no-install-recommends" && \
         && \
     $PIP_INSTALL \
         --pre torch torchvision -f \
-        https://download.pytorch.org/whl/nightly/cpu/torch_nightly.html \
+        https://download.pytorch.org/whl/nightly/cu101/torch_nightly.html \
         && \
 
 # ==================================================================
@@ -202,7 +203,7 @@ RUN APT_INSTALL="apt-get install -y --no-install-recommends" && \
 # ------------------------------------------------------------------
 
     $PIP_INSTALL \
-        tensorflow==1.15 \
+        tensorflow-gpu=1.15 \
         && \
 
 # ==================================================================
@@ -212,6 +213,18 @@ RUN APT_INSTALL="apt-get install -y --no-install-recommends" && \
     DEBIAN_FRONTEND=noninteractive $APT_INSTALL \
         libblas-dev \
         && \
+
+    wget -qO- https://github.com/Theano/libgpuarray/archive/v0.7.6.tar.gz | tar xz -C ~ && \
+    cd ~/libgpuarray* && mkdir -p build && cd build && \
+    cmake -D CMAKE_BUILD_TYPE=RELEASE \
+          -D CMAKE_INSTALL_PREFIX=/usr/local \
+          .. && \
+    make -j"$(nproc)" install && \
+    cd ~/libgpuarray* && \
+    python setup.py build && \
+    python setup.py install && \
+
+    printf '[global]\nfloatX = float32\ndevice = cuda0\n\n[dnn]\ninclude_path = /usr/local/cuda/targets/x86_64-linux/include\n' > ~/.theanorc && \
 
     $PIP_INSTALL \
         https://github.com/Theano/Theano/archive/master.zip \
@@ -289,7 +302,7 @@ RUN APT_INSTALL="apt-get install -y --no-install-recommends" && \
 
     apt-get update && \
     DEBIAN_FRONTEND=noninteractive $APT_INSTALL \
-        caffe-cpu \
+        caffe-cuda \
         && \
 # ==================================================================
 # cntk
@@ -318,7 +331,7 @@ RUN APT_INSTALL="apt-get install -y --no-install-recommends" && \
     make -j"$(nproc)" install && \
 
     $PIP_INSTALL \
-        cntk \
+        cntk-gpu \
         && \
 
 # ==================================================================
