@@ -56,20 +56,6 @@ RUN APT_INSTALL="apt-get install -y --no-install-recommends" && \
     make -j"$(nproc)" install && \
 
 # ==================================================================
-# darknet
-# ------------------------------------------------------------------
-
-    $GIT_CLONE https://github.com/pjreddie/darknet.git ~/darknet && \
-    cd ~/darknet && \
-    sed -i 's/GPU=0/GPU=1/g' ~/darknet/Makefile && \
-    sed -i 's/CUDNN=0/CUDNN=1/g' ~/darknet/Makefile && \
-    make -j"$(nproc)" && \
-    cp ~/darknet/include/* /usr/local/include && \
-    cp ~/darknet/*.a /usr/local/lib && \
-    cp ~/darknet/*.so /usr/local/lib && \
-    cp ~/darknet/darknet /usr/local/bin && \
-
-# ==================================================================
 # python
 # ------------------------------------------------------------------
 
@@ -143,45 +129,6 @@ RUN APT_INSTALL="apt-get install -y --no-install-recommends" && \
         && \
 
 # ==================================================================
-# mxnet
-# ------------------------------------------------------------------
-
-    DEBIAN_FRONTEND=noninteractive $APT_INSTALL \
-        libatlas-base-dev \
-        graphviz \
-        && \
-
-    $PIP_INSTALL \
-        mxnet-cu101 \
-        graphviz \
-        && \
-
-# ==================================================================
-# onnx
-# ------------------------------------------------------------------
-
-    DEBIAN_FRONTEND=noninteractive $APT_INSTALL \
-        protobuf-compiler \
-        libprotoc-dev \
-        && \
-
-    $PIP_INSTALL \
-        --no-binary onnx onnx \
-        && \
-
-    $PIP_INSTALL \
-        onnxruntime \
-        && \
-
-# ==================================================================
-# paddle
-# ------------------------------------------------------------------
-
-    $PIP_INSTALL \
-        paddlepaddle-gpu \
-        && \
-
-# ==================================================================
 # pytorch
 # ------------------------------------------------------------------
 
@@ -203,34 +150,11 @@ RUN APT_INSTALL="apt-get install -y --no-install-recommends" && \
 # ------------------------------------------------------------------
 
     $PIP_INSTALL \
-        tensorflow-gpu==1.15 \
+        tensorflow-gpu \
         && \
 
 # ==================================================================
-# theano
-# ------------------------------------------------------------------
 
-    DEBIAN_FRONTEND=noninteractive $APT_INSTALL \
-        libblas-dev \
-        && \
-
-    wget -qO- https://github.com/Theano/libgpuarray/archive/v0.7.6.tar.gz | tar xz -C ~ && \
-    cd ~/libgpuarray* && mkdir -p build && cd build && \
-    cmake -D CMAKE_BUILD_TYPE=RELEASE \
-          -D CMAKE_INSTALL_PREFIX=/usr/local \
-          .. && \
-    make -j"$(nproc)" install && \
-    cd ~/libgpuarray* && \
-    python setup.py build && \
-    python setup.py install && \
-
-    printf '[global]\nfloatX = float32\ndevice = cuda0\n\n[dnn]\ninclude_path = /usr/local/cuda/targets/x86_64-linux/include\n' > ~/.theanorc && \
-
-    $PIP_INSTALL \
-        https://github.com/Theano/Theano/archive/master.zip \
-        && \
-
-# ==================================================================
 # jupyterlab
 # ------------------------------------------------------------------
 
@@ -246,15 +170,6 @@ RUN APT_INSTALL="apt-get install -y --no-install-recommends" && \
         h5py \
         keras \
         && \
-
-# ==================================================================
-# lasagne
-# ------------------------------------------------------------------
-
-    $GIT_CLONE https://github.com/Lasagne/Lasagne ~/lasagne && \
-    cd ~/lasagne && \
-    $PIP_INSTALL \
-        . && \
 
 # ==================================================================
 # opencv
@@ -286,53 +201,6 @@ RUN APT_INSTALL="apt-get install -y --no-install-recommends" && \
           .. && \
     make -j"$(nproc)" install && \
     ln -s /usr/local/include/opencv4/opencv2 /usr/local/include/opencv2 && \
-
-# ==================================================================
-# sonnet
-# ------------------------------------------------------------------
-
-    $PIP_INSTALL \
-        tensorflow_probability \
-        "dm-sonnet>=2.0.0b0" --pre \
-        && \
-
-# ==================================================================
-# caffe
-# ------------------------------------------------------------------
-
-    apt-get update && \
-    DEBIAN_FRONTEND=noninteractive $APT_INSTALL \
-        caffe-cuda \
-        && \
-# ==================================================================
-# cntk
-# ------------------------------------------------------------------
-
-    DEBIAN_FRONTEND=noninteractive $APT_INSTALL \
-        openmpi-bin \
-        libpng-dev \
-        libjpeg-dev \
-        libtiff-dev \
-        && \
-
-    # Fix ImportError for CNTK
-    ln -s /usr/lib/x86_64-linux-gnu/libmpi_cxx.so.20 /usr/lib/x86_64-linux-gnu/libmpi_cxx.so.1 && \
-    ln -s /usr/lib/x86_64-linux-gnu/libmpi.so.20.10.1 /usr/lib/x86_64-linux-gnu/libmpi.so.12 && \
-
-    wget --no-verbose -O - https://github.com/01org/mkl-dnn/releases/download/v0.14/mklml_lnx_2018.0.3.20180406.tgz | tar -xzf - && \
-    cp mklml*/* /usr/local -r && \
-
-    wget --no-verbose -O - https://github.com/01org/mkl-dnn/archive/v0.14.tar.gz | tar -xzf - && \
-    cd *-0.14 && mkdir build && cd build && \
-    ln -s /usr/local external && \
-    cmake -D CMAKE_BUILD_TYPE=RELEASE \
-          -D CMAKE_INSTALL_PREFIX=/usr/local \
-          .. && \
-    make -j"$(nproc)" install && \
-
-    $PIP_INSTALL \
-        cntk-gpu \
-        && \
 
 # ==================================================================
 # config & cleanup
