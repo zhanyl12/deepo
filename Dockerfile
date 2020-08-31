@@ -21,7 +21,7 @@
 # cntk          latest (pip)
 # ==================================================================
 
-FROM nvidia/cuda:10.1-cudnn7-devel-ubuntu18.04
+FROM ubuntu:18.04
 ENV LANG C.UTF-8
 RUN APT_INSTALL="apt-get install -y --no-install-recommends" && \
     PIP_INSTALL="python -m pip --no-cache-dir install --upgrade" && \
@@ -54,6 +54,20 @@ RUN APT_INSTALL="apt-get install -y --no-install-recommends" && \
     cd ~/cmake && \
     ./bootstrap && \
     make -j"$(nproc)" install && \
+
+# ==================================================================
+# darknet
+# ------------------------------------------------------------------
+
+    $GIT_CLONE https://github.com/pjreddie/darknet.git ~/darknet && \
+    cd ~/darknet && \
+    sed -i 's/GPU=0/GPU=0/g' ~/darknet/Makefile && \
+    sed -i 's/CUDNN=0/CUDNN=0/g' ~/darknet/Makefile && \
+    make -j"$(nproc)" && \
+    cp ~/darknet/include/* /usr/local/include && \
+    cp ~/darknet/*.a /usr/local/lib && \
+    cp ~/darknet/*.so /usr/local/lib && \
+    cp ~/darknet/darknet /usr/local/bin && \
 
 # ==================================================================
 # python
@@ -112,11 +126,58 @@ RUN APT_INSTALL="apt-get install -y --no-install-recommends" && \
         && \
 
 # ==================================================================
+# chainer
+# ------------------------------------------------------------------
+
+    $PIP_INSTALL \
+        chainer \
+        && \
+
+# ==================================================================
 # jupyter
 # ------------------------------------------------------------------
 
     $PIP_INSTALL \
         jupyter \
+        && \
+
+# ==================================================================
+# mxnet
+# ------------------------------------------------------------------
+
+    DEBIAN_FRONTEND=noninteractive $APT_INSTALL \
+        libatlas-base-dev \
+        graphviz \
+        && \
+
+    $PIP_INSTALL \
+        mxnet \
+        graphviz \
+        && \
+
+# ==================================================================
+# onnx
+# ------------------------------------------------------------------
+
+    DEBIAN_FRONTEND=noninteractive $APT_INSTALL \
+        protobuf-compiler \
+        libprotoc-dev \
+        && \
+
+    $PIP_INSTALL \
+        --no-binary onnx onnx \
+        && \
+
+    $PIP_INSTALL \
+        onnxruntime \
+        && \
+
+# ==================================================================
+# paddle
+# ------------------------------------------------------------------
+
+    $PIP_INSTALL \
+        paddlepaddle \
         && \
 
 # ==================================================================
@@ -133,7 +194,7 @@ RUN APT_INSTALL="apt-get install -y --no-install-recommends" && \
         && \
     $PIP_INSTALL \
         --pre torch torchvision -f \
-        https://download.pytorch.org/whl/nightly/cu101/torch_nightly.html \
+        https://download.pytorch.org/whl/nightly/cpu/torch_nightly.html \
         && \
 
 # ==================================================================
@@ -141,11 +202,36 @@ RUN APT_INSTALL="apt-get install -y --no-install-recommends" && \
 # ------------------------------------------------------------------
 
     $PIP_INSTALL \
-        tensorflow-gpu==1.15 \
+        tensorflow ==1.15\
         && \
 
 # ==================================================================
+# gensim optimization tokenization
+# ------------------------------------------------------------------
 
+    $PIP_INSTALL \
+        gensim \
+        && \
+    $PIP_INSTALL \
+        optimization \
+        && \
+    $PIP_INSTALL \
+        tokenization \
+        && \
+
+# ==================================================================
+# theano
+# ------------------------------------------------------------------
+
+    DEBIAN_FRONTEND=noninteractive $APT_INSTALL \
+        libblas-dev \
+        && \
+
+    $PIP_INSTALL \
+        https://github.com/Theano/Theano/archive/master.zip \
+        && \
+
+# ==================================================================
 # jupyterlab
 # ------------------------------------------------------------------
 
@@ -163,6 +249,91 @@ RUN APT_INSTALL="apt-get install -y --no-install-recommends" && \
         && \
 
 # ==================================================================
+# lasagne
+# ------------------------------------------------------------------
+
+    $GIT_CLONE https://github.com/Lasagne/Lasagne ~/lasagne && \
+    cd ~/lasagne && \
+    $PIP_INSTALL \
+        . && \
+
+# ==================================================================
+# opencv
+# ------------------------------------------------------------------
+
+    DEBIAN_FRONTEND=noninteractive $APT_INSTALL \
+        libatlas-base-dev \
+        libgflags-dev \
+        libgoogle-glog-dev \
+        libhdf5-serial-dev \
+        libleveldb-dev \
+        liblmdb-dev \
+        libprotobuf-dev \
+        libsnappy-dev \
+        protobuf-compiler \
+        && \
+
+    $GIT_CLONE --branch 4.3.0 https://github.com/opencv/opencv ~/opencv && \
+    mkdir -p ~/opencv/build && cd ~/opencv/build && \
+    cmake -D CMAKE_BUILD_TYPE=RELEASE \
+          -D CMAKE_INSTALL_PREFIX=/usr/local \
+          -D WITH_IPP=OFF \
+          -D WITH_CUDA=OFF \
+          -D WITH_OPENCL=OFF \
+          -D BUILD_TESTS=OFF \
+          -D BUILD_PERF_TESTS=OFF \
+          -D BUILD_DOCS=OFF \
+          -D BUILD_EXAMPLES=OFF \
+          .. && \
+    make -j"$(nproc)" install && \
+    ln -s /usr/local/include/opencv4/opencv2 /usr/local/include/opencv2 && \
+
+# ==================================================================
+# sonnet
+# ------------------------------------------------------------------
+
+    $PIP_INSTALL \
+        tensorflow_probability \
+        "dm-sonnet>=2.0.0b0" --pre \
+        && \
+
+# ==================================================================
+# caffe
+# ------------------------------------------------------------------
+
+    apt-get update && \
+    DEBIAN_FRONTEND=noninteractive $APT_INSTALL \
+        caffe-cpu \
+        && \
+# ==================================================================
+# cntk
+# ------------------------------------------------------------------
+
+    DEBIAN_FRONTEND=noninteractive $APT_INSTALL \
+        openmpi-bin \
+        libpng-dev \
+        libjpeg-dev \
+        libtiff-dev \
+        && \
+
+    # Fix ImportError for CNTK
+    ln -s /usr/lib/x86_64-linux-gnu/libmpi_cxx.so.20 /usr/lib/x86_64-linux-gnu/libmpi_cxx.so.1 && \
+    ln -s /usr/lib/x86_64-linux-gnu/libmpi.so.20.10.1 /usr/lib/x86_64-linux-gnu/libmpi.so.12 && \
+
+    wget --no-verbose -O - https://github.com/01org/mkl-dnn/releases/download/v0.14/mklml_lnx_2018.0.3.20180406.tgz | tar -xzf - && \
+    cp mklml*/* /usr/local -r && \
+
+    wget --no-verbose -O - https://github.com/01org/mkl-dnn/archive/v0.14.tar.gz | tar -xzf - && \
+    cd *-0.14 && mkdir build && cd build && \
+    ln -s /usr/local external && \
+    cmake -D CMAKE_BUILD_TYPE=RELEASE \
+          -D CMAKE_INSTALL_PREFIX=/usr/local \
+          .. && \
+    make -j"$(nproc)" install && \
+
+    $PIP_INSTALL \
+        cntk \
+        && \
 
 # ==================================================================
 # config & cleanup
